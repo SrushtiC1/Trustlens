@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - TrustLens</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Space+Grotesk:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body class="auth-page">
+    <div class="background-overlay"></div>
+    <div class="container">
+        <div class="auth-card glass slide-up">
+            <div class="logo fade-in">Trust<span>Lens</span></div>
+            <h2 class="fade-in">Create Account</h2>
+            <form id="registerForm" class="fade-in">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" placeholder="name@company.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" placeholder="••••••••" required>
+                </div>
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <select id="role">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Register Account</button>
+            </form>
+            <p class="auth-footer fade-in">Already have an account? <a href="index.html">Login</a></p>
+        </div>
+    </div>
+    <div id="toast" class="toast"></div>
+    <script src="js/main.js"></script>
+</body>
+
+</html>

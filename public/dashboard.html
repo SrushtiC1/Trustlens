@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - TrustLens</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Space+Grotesk:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="dashboard-page">
+    <div class="background-overlay"></div>
+
+    <header class="dashboard-header glass slide-up">
+        <div class="logo">Trust<span>Lens</span></div>
+        <div class="user-info">
+            <span id="userEmail">Loading...</span>
+            <button id="logoutBtn" class="btn btn-sm btn-outline">Logout</button>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <!-- Sidebar/Analysis Panel -->
+        <aside class="analysis-panel glass fade-in">
+            <h3>New Analysis</h3>
+            <form id="analysisForm">
+                <div class="form-group">
+                    <label for="entityType">Type</label>
+                    <select id="entityType" required>
+                        <option value="URL">Website URL</option>
+                        <option value="Email">Email Address</option>
+                        <option value="Phone">Phone Number</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="entityInput">Input</label>
+                    <input type="text" id="entityInput" placeholder="e.g. example.com" required>
+                </div>
+                <button type="submit" id="analyzeBtn" class="btn btn-primary btn-block">
+                    <span class="btn-text">Run Analysis</span>
+                    <span class="spinner" style="display: none;"></span>
+                </button>
+            </form>
+
+            <div class="complaint-section">
+                <h3>Report Suspicious</h3>
+                <form id="complaintForm">
+                    <div class="form-group">
+                        <input type="text" id="complaintEntity" placeholder="URL/Email/Phone" required>
+                    </div>
+                    <div class="form-group">
+                        <textarea id="complaintReason" placeholder="Reason for report..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger btn-block">Submit Report</button>
+                </form>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard View -->
+        <main class="dashboard-main">
+            <!-- Summary Stats/Graph -->
+            <section class="summary-section slide-up">
+                <div class="result-card glass">
+                    <h3>Analysis Result</h3>
+                    <div class="result-content">
+                        <div class="chart-container">
+                            <canvas id="trustChart"></canvas>
+                            <div id="scoreValue" class="score-overlay">--</div>
+                        </div>
+                        <div class="risk-info">
+                            <div id="riskBadge" class="badge">Awaiting Input</div>
+                            <div id="entityDisplay" class="entity-name">---</div>
+                            
+                            <!-- AI Smart Insight Card -->
+                            <div id="aiInsightCard" class="ai-insight-card" style="display: none;">
+                                <div class="ai-header">
+                                    <span class="ai-icon">✨</span>
+                                    <h4>AI Smart Perspective</h4>
+                                </div>
+                                <div id="aiInsightText" class="ai-text">Analyzing patterns...</div>
+                            </div>
+
+                            <div id="askAiSection" style="display: none; margin-bottom: 24px;">
+                                <button id="askAiBtn" class="btn btn-outline btn-block" style="border-color: var(--primary); color: var(--primary);">
+                                    <span class="btn-text">✨ Get AI Smart Insight</span>
+                                    <span class="spinner" style="display: none;"></span>
+                                </button>
+                            </div>
+
+                            <ul id="breakdownList" class="breakdown-list">
+                                <!-- Dynamicaly populated -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History Table -->
+            <section class="history-section glass slide-up">
+                <h3>Previous Analysis History</h3>
+                <p style="color: var(--text-dim); font-size: 0.85rem; margin-top: -8px; margin-bottom: 16px;">Click on any row to view the detailed risk breakdown.</p>
+                <div class="table-responsive">
+                    <table id="historyTable">
+                        <thead>
+                            <tr>
+                                <th>Entity</th>
+                                <th>Type</th>
+                                <th>Score</th>
+                                <th>Risk</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody">
+                            <!-- Dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <script src="js/main.js"></script>
+</body>
+
+</html>
