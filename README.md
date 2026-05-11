@@ -6,7 +6,7 @@ TrustLens is a full-stack security application designed to analyze the trust lev
 - **Frontend**: Vanilla JS, CSS3, (Chart.js for visualization)
 - **Backend**: Node.js, Express.js
 - **Database**: MongoDB (Mongoose ODM)
-- **Security**: JWT Auth, bcrypt password hashing
+- **Security**: JWT Auth, bcrypt password hashing, Helmet headers, Rate limiting, Command Injection protection, and NoSQL injection sanitization.
 
 ## Features
 - Real-time Trust Scoring (0-100)

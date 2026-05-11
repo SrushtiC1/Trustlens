@@ -10,7 +10,8 @@ exports.register = async (req, res) => {
             return res.status(400).json({ success: false, message: 'User already exists' });
         }
 
-        user = new User({ email, password, role: req.body.role || 'user' });
+        // Force role to 'user' during public registration to prevent privilege escalation
+        user = new User({ email, password, role: 'user' });
         await user.save();
 
         const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
@@ -25,15 +26,7 @@ exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Special case for fixed admin credentials
-        if (email === 'admin' && password === 'admin') {
-            const token = jwt.sign({ id: 'fixed-admin-id', role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '1d' });
-            return res.status(200).json({
-                success: true,
-                token,
-                user: { id: 'fixed-admin-id', email: 'admin', role: 'admin' }
-            });
-        }
+        // Note: Removed hardcoded admin/admin login for security compliance
 
         const user = await User.findOne({ email });
         if (!user) {

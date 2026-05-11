@@ -5,6 +5,7 @@ const util = require('util');
 const execPromise = util.promisify(require('child_process').exec);
 const path = require('path');
 const aiService = require('../utils/aiService');
+const mockDataService = require('../utils/mockDataService');
 
 exports.analyzeEntity = async (req, res) => {
     try {
@@ -14,52 +15,19 @@ exports.analyzeEntity = async (req, res) => {
         // Search for entity in sample data to get simulated metrics
         let sampleData = await SampleEntity.findOne({ entity });
 
-        // If not in sample data, perform heuristic-based "Real-Time" simulation
+        // If not in sample data, generate heuristic-based metrics
         if (!sampleData) {
-            // Generate deterministic "random" values based on the entity string
-            let hash = 0;
-            for (let i = 0; i < entity.length; i++) {
-                hash = ((hash << 5) - hash) + entity.charCodeAt(i);
-                hash |= 0;
-            }
-            const absHash = Math.abs(hash);
-
-            const entityLower = entity.toLowerCase();
-            const isUrl = type.toLowerCase() === 'url' || type.toLowerCase() === 'website';
-            // Heuristic 1: TLD-based age (for URLs) or Randomized age
-            let ageGuess = (absHash % 80) / 10; // 0 to 7.9 years
-            if (isUrl) {
-                const safeTlds = ['.com', '.org', '.net', '.edu', '.gov'];
-                const suspiciousTlds = ['.xyz', '.top', '.icu', '.party', '.bid', '.gdn'];
-                if (safeTlds.some(t => entityLower.endsWith(t))) ageGuess += 2.5;
-                if (suspiciousTlds.some(t => entityLower.endsWith(t))) ageGuess *= 0.1;
-            } else if (type.toLowerCase() === 'phone') {
-                // For phones, age might represent registration duration
-                ageGuess = (absHash % 50) / 10;
-            }
-
-            // Heuristic 2: Keywords
-            const suspiciousWords = ['login', 'verify', 'update', 'banking', 'secure-verify', 'prize', 'gift'];
-            const hasSuspiciousWords = suspiciousWords.some(word => entityLower.includes(word));
-
-            sampleData = {
-                entity,
-                type,
-                isHttps: entity.startsWith('https://'),
-                domainAgeYears: ageGuess,
-                isBlacklisted: (absHash % 100) < 8, // 8% chance of simulated blacklist
-                complaintsCount: hasSuspiciousWords ? (3 + (absHash % 12)) : (absHash % 4),
-                suspiciousKeywordsFound: hasSuspiciousWords
-            };
+            sampleData = mockDataService.generateMockFeatures(entity, type);
         }
 
-        // Execute Machine Learning Python Script
+        // Execute Machine Learning Python Script (Using execFile for security)
+        const execFile = util.promisify(require('child_process').execFile);
         let mlPrediction = null;
         try {
             const scriptPath = path.join(__dirname, '../../ml/predict.py');
-            const safeEntity = entity.replace(/"/g, '\\"');
             
-            const { stdout } = await execPromise(`python "${scriptPath}" --type "${type}" --entity "${safeEntity}"`);
+            // Pass arguments as an array to prevent shell injection
+            const { stdout } = await execFile('python', [scriptPath, '--type', type, '--entity', entity]);
             
             // Find the JSON block
             const outputLines = stdout.split('\n');
@@ -131,5 +99,25 @@ exports.getAiInsight = async (req, res) => {
         res.status(200).json({ success: true, aiInsight });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+exports.handleChat = async (req, res) => {
+    try {
+        const { message, history } = req.body;
+        
+        if (!message) {
+            return res.status(400).json({ success: false, message: "Message is required" });
+        }
+
+        const response = await aiService.getChatResponse(history || [], message);
+        
+        res.status(200).json({
+            success: true,
+            response
+        });
+    } catch (err) {
+        console.error("Chat Controller Error:", err);
+        res.status(500).json({ success: false, message: "Failed to get AI response" });
     }
 };

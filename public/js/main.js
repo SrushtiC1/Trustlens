@@ -1,33 +1,47 @@
-// TrustLens Main JS
-// Handling Auth, Dashboard, and Analysis
+const CONFIG = {
+    API_URL: '/api',
+    STORAGE: {
+        TOKEN: 'trustlens_token',
+        EMAIL: 'trustlens_user_email',
+        ROLE: 'trustlens_user_role'
+    }
+};
 
-const API_URL = '/api';
-const token = localStorage.getItem('trustlens_token');
-
-// Global Chart Instance
+const token = localStorage.getItem(CONFIG.STORAGE.TOKEN);
 let trustChart = null;
 
+/**
+ * Generic API helper to reduce code duplication
+ */
+async function apiCall(endpoint, options = {}) {
+    const defaultHeaders = { 'Content-Type': 'application/json' };
+    if (token) defaultHeaders['Authorization'] = `Bearer ${token}`;
+
+    const config = {
+        method: options.method || 'GET',
+        headers: { ...defaultHeaders, ...options.headers },
+        ...options
+    };
+
+    if (options.body) config.body = JSON.stringify(options.body);
+
+    const res = await fetch(`${CONFIG.API_URL}${endpoint}`, config);
+    return await res.json();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if we are on an auth-protected page
     if (document.body.classList.contains('dashboard-page')) {
         if (!token) {
             window.location.href = 'index.html';
             return;
         }
 
-        const userRole = localStorage.getItem('trustlens_user_role');
+        const userRole = localStorage.getItem(CONFIG.STORAGE.ROLE);
 
-        // Admin page protection
         if (document.body.classList.contains('admin-page') && userRole !== 'admin') {
             window.location.href = 'dashboard.html';
             return;
         }
-
-        // Dashboard page redirect for admin (optional: allow admins on dashboard too)
-        // if (document.body.classList.contains('user-dashboard') && userRole === 'admin') {
-        //     window.location.href = 'admin.html';
-        //     return;
-        // }
 
         initDashboard();
     }
@@ -53,25 +67,19 @@ async function handleLogin(e) {
     const password = document.getElementById('password').value;
 
     try {
-        const res = await fetch(`${API_URL}/auth/login`, {
+        const data = await apiCall('/auth/login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: { email, password }
         });
-        const data = await res.json();
 
         if (data.success) {
-            localStorage.setItem('trustlens_token', data.token);
-            localStorage.setItem('trustlens_user_email', data.user.email);
-            localStorage.setItem('trustlens_user_role', data.user.role);
+            localStorage.setItem(CONFIG.STORAGE.TOKEN, data.token);
+            localStorage.setItem(CONFIG.STORAGE.EMAIL, data.user.email);
+            localStorage.setItem(CONFIG.STORAGE.ROLE, data.user.role);
             showToast('Login successful! Redirecting...', 'success');
 
             setTimeout(() => {
-                if (data.user.role === 'admin') {
-                    window.location.href = 'admin.html';
-                } else {
-                    window.location.href = 'dashboard.html';
-                }
+                window.location.href = data.user.role === 'admin' ? 'admin.html' : 'dashboard.html';
             }, 1500);
         } else {
             showToast(data.message, 'error');
@@ -86,7 +94,6 @@ async function handleRegister(e) {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
-    const role = document.getElementById('role') ? document.getElementById('role').value : 'user';
 
     if (password !== confirmPassword) {
         showToast('Passwords do not match', 'error');
@@ -94,15 +101,13 @@ async function handleRegister(e) {
     }
 
     try {
-        const res = await fetch(`${API_URL}/auth/register`, {
+        const data = await apiCall('/auth/register', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, role })
+            body: { email, password }
         });
-        const data = await res.json();
 
         if (data.success) {
-            showToast('Registration successful! Please login to continue.', 'success');
+            showToast('Registration successful! Please login.', 'success');
             setTimeout(() => window.location.href = 'index.html', 1500);
         } else {
             showToast(data.message, 'error');
@@ -121,9 +126,7 @@ function initDashboard() {
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem('trustlens_token');
-            localStorage.removeItem('trustlens_user_email');
-            localStorage.removeItem('trustlens_user_role');
+            Object.values(CONFIG.STORAGE).forEach(key => localStorage.removeItem(key));
             window.location.href = 'index.html';
         });
     }
@@ -151,13 +154,9 @@ function initDashboard() {
 async function fetchAdminStats() {
     // For now, using history to calculate simple stats for demo
     try {
-        const res = await fetch(`${API_URL}/analysis/history`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
+        const data = await apiCall('/analysis/history');
         if (data.success) {
             document.getElementById('totalAnalyses').textContent = data.history.length;
-            // Mocking active complaints for now
             document.getElementById('activeComplaints').textContent = Math.floor(data.history.length / 3);
         }
     } catch (err) {
@@ -167,10 +166,7 @@ async function fetchAdminStats() {
 
 async function fetchUsers() {
     try {
-        const res = await fetch(`${API_URL}/auth/users`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
+        const data = await apiCall('/auth/users');
         if (data.success) {
             const tbody = document.getElementById('usersBody');
             tbody.innerHTML = '';
@@ -199,15 +195,10 @@ async function handleAddUser(e) {
     const password = document.getElementById('newPassword').value;
 
     try {
-        const res = await fetch(`${API_URL}/auth/users`, {
+        const data = await apiCall('/auth/users', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ email, password, role: 'user' })
+            body: { email, password, role: 'user' }
         });
-        const data = await res.json();
         if (data.success) {
             showToast('User added successfully', 'success');
             document.getElementById('addUserForm').reset();
@@ -223,11 +214,7 @@ async function handleAddUser(e) {
 window.deleteUser = async function(id) {
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
-        const res = await fetch(`${API_URL}/auth/users/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
+        const data = await apiCall(`/auth/users/${id}`, { method: 'DELETE' });
         if (data.success) {
             showToast('User deleted', 'success');
             fetchUsers();
@@ -265,15 +252,10 @@ async function handleAnalysis(e) {
         riskBadge.className = 'badge';
         scoreValue.textContent = '??';
 
-        const res = await fetch(`${API_URL}/analysis/analyze`, {
+        const data = await apiCall('/analysis/analyze', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ type, entity })
+            body: { type, entity }
         });
-        const data = await res.json();
 
         if (data.success) {
             // Simulated "Real-Time" steps for better UX
@@ -313,15 +295,10 @@ async function handleComplaint(e) {
     const reason = document.getElementById('complaintReason').value;
 
     try {
-        const res = await fetch(`${API_URL}/complaints/submit`, {
+        const data = await apiCall('/complaints/submit', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ entity, reason })
+            body: { entity, reason }
         });
-        const data = await res.json();
 
         if (data.success) {
             showToast('Report submitted!', 'success');
@@ -336,10 +313,7 @@ async function handleComplaint(e) {
 
 async function fetchHistory() {
     try {
-        const res = await fetch(`${API_URL}/analysis/history`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
+        const data = await apiCall('/analysis/history');
 
         if (data.success) {
             const tbody = document.getElementById('historyBody');
@@ -425,22 +399,15 @@ async function handleGetAiInsight(result) {
     btnText.style.display = 'none';
 
     try {
-        // We'll create a new endpoint for this, but for now we'll just mock the response
-        // if the user wants to save on API credits by only running it on demand.
-        const res = await fetch(`${API_URL}/analysis/ai-insight`, {
+        const data = await apiCall('/analysis/ai-insight', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ 
+            body: { 
                 entity: result.entity,
                 type: result.type,
                 score: result.score,
                 breakdown: result.breakdown
-            })
+            }
         });
-        const data = await res.json();
 
         if (data.success) {
             document.getElementById('askAiSection').style.display = 'none';
@@ -590,3 +557,164 @@ function showToast(message, type = 'info') {
         toast.className = 'toast';
     }, 4000);
 }
+
+// --- AI Chat Assistant Logic ---
+
+let chatHistory = [];
+
+/**
+ * Injects the chat widget HTML into the page if it doesn't exist
+ */
+function injectChatWidget() {
+    if (document.getElementById('aiChatWidget')) return;
+
+    const widget = document.createElement('div');
+    widget.id = 'aiChatWidget';
+    widget.className = 'chat-widget';
+    widget.innerHTML = `
+        <button id="chatToggleBtn" class="chat-toggle-btn glass">
+            <span class="chat-icon">💬</span>
+            <span class="chat-badge" style="display: none;">1</span>
+        </button>
+
+        <div id="chatWindow" class="chat-window glass">
+            <div class="chat-header">
+                <div class="ai-status">
+                    <span class="status-dot"></span>
+                    <span class="ai-name">TrustLens AI Assistant</span>
+                </div>
+                <button id="closeChatBtn" class="close-btn">&times;</button>
+            </div>
+            
+            <div id="chatMessages" class="chat-messages">
+                <div class="message ai-message">
+                    Hello! I'm your TrustLens security assistant. How can I help you today?
+                    <div class="quick-actions">
+                        <button class="quick-btn" data-query="How do I scan a URL?">How do I scan?</button>
+                        <button class="quick-btn" data-query="What is a Trust Score?">What is Trust Score?</button>
+                        <button class="quick-btn" data-query="How do I report a scam?">Reporting scams</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <form id="chatForm">
+                    <input type="text" id="chatInput" placeholder="Ask me anything..." autocomplete="off">
+                    <button type="submit" id="sendChatBtn" class="send-btn">
+                        <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(widget);
+}
+
+function initChatAssistant() {
+    injectChatWidget();
+
+    const chatToggleBtn = document.getElementById('chatToggleBtn');
+    const chatWindow = document.getElementById('chatWindow');
+    const closeChatBtn = document.getElementById('closeChatBtn');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+    const chatMessages = document.getElementById('chatMessages');
+
+    if (!chatToggleBtn) return;
+
+    // Toggle Chat
+    chatToggleBtn.addEventListener('click', () => {
+        chatWindow.classList.toggle('active');
+        if (chatWindow.classList.contains('active')) {
+            chatInput.focus();
+            const badge = chatToggleBtn.querySelector('.chat-badge');
+            if (badge) badge.style.display = 'none';
+        }
+    });
+
+    closeChatBtn.addEventListener('click', () => {
+        chatWindow.classList.remove('active');
+    });
+
+    // Handle Quick Actions
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('quick-btn')) {
+            const query = e.target.getAttribute('data-query');
+            handleChatMessage(query);
+        }
+    });
+
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = chatInput.value.trim();
+        if (!message) return;
+        handleChatMessage(message);
+        chatInput.value = '';
+    });
+}
+
+async function handleChatMessage(message) {
+    const chatInput = document.getElementById('chatInput');
+    
+    // Add user message to UI
+    addChatMessage('user', message);
+
+    // Show typing indicator
+    const typingIndicator = showTypingIndicator();
+
+    try {
+        const data = await apiCall('/analysis/chat', {
+            method: 'POST',
+            body: { message, history: chatHistory }
+        });
+
+        // Remove typing indicator
+        typingIndicator.remove();
+
+        if (data.success) {
+            addChatMessage('ai', data.response);
+            // Update history
+            chatHistory.push({ role: 'user', content: message });
+            chatHistory.push({ role: 'model', content: data.response });
+            
+            // Limit history
+            if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+        } else {
+            addChatMessage('ai', 'I encountered an issue. Please try again.');
+        }
+    } catch (err) {
+        if (typingIndicator) typingIndicator.remove();
+        addChatMessage('ai', 'Connection lost. Please check your internet.');
+    }
+}
+
+function addChatMessage(role, text) {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${role}-message`;
+    msgDiv.textContent = text;
+    chatMessages.appendChild(msgDiv);
+    
+    // Scroll to bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function showTypingIndicator() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+
+    const indicator = document.createElement('div');
+    indicator.className = 'typing-indicator';
+    indicator.innerHTML = '<span></span><span></span><span></span>';
+    chatMessages.appendChild(indicator);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return indicator;
+}
+
+// Global Initialization
+document.addEventListener('DOMContentLoaded', () => {
+    // Ensure chat assistant is always initialized on every page
+    initChatAssistant();
+});
